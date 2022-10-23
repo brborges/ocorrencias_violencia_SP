@@ -8,3 +8,9 @@ library(tidyverse)
 df <- read_csv("dados/ocorrencias_registradas.csv")
 df
 
+
+# Manipulacao -------------------------------------------------------------
+
+
+df %>% str
+
