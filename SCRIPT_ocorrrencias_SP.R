@@ -3,6 +3,7 @@
 library(basedosdados)
 library(tidyverse)
 library(lubridate)
+library(writexl)
 
 # Importando dados --------------------------------------------------------
 
@@ -14,6 +15,10 @@ df
 query <- bdplyr("br_sp_gov_ssp.ocorrencias_registradas")
 df <- bd_collect(query)
 df
+
+## Importando lat e log dos municipios
+municipios <- read.csv2("https://raw.githubusercontent.com/kelvins/Municipios-Brasileiros/main/csv/municipios.csv", sep = ",",encoding = "UTF-8")
+municipios
 
 # Manipulacao -------------------------------------------------------------
 
@@ -104,6 +109,15 @@ df_temp <- df_temp %>%
 df_temp$tipo_ocorrencia <- stringr::str_replace(df_temp$tipo_ocorrencia,pattern = "total_",replacement = "")
 df_temp %>% View
 
+
+## juntando o df_temp com a base de municipios (lat e lon)
+municipios <- municipios %>% 
+                  mutate(codigo_ibge = as.character(codigo_ibge)) %>% 
+                  rename(id_municipio = codigo_ibge)
+df_temp <- df_temp %>% 
+  left_join(municipios,by = "id_municipio") %>% 
+  select(1:9)
+
 ------------    
     
 ## criando coluna datatime ("somente se necessario")
@@ -115,6 +129,9 @@ df_temp2$data[1] %>% class
 
 # Visualização ------------------------------------------------------------
 
+## paleta de cores
+paleta.bruno <- colorRampPalette(c("#ffffcc","#c7e9b4","#7fcdbb","#41b6c4","#2c7fb8","#253494"))
+paleta.bruno
 
 ## curva total de crimes por dia (labels agrupados por ano)
 df_temp %>% 
@@ -135,14 +152,27 @@ df_temp %>%
   group_by(ano,tipo_ocorrencia) %>%
   summarise(crimes = sum(crimes,na.rm = T)) %>%
   ggplot2::ggplot(aes(x=ano, y=crimes,color=tipo_ocorrencia))+
-  ggplot2::geom_line()+
-  ggplot2::geom_point()+
+  ggplot2::geom_line(size=1.2)+
+  ggplot2::geom_point(size=3)+
+  # scale_color_continuous(colours = paleta.bruno(6))+
   ggplot2::scale_x_continuous(n.breaks = 18)+
   ggplot2::scale_y_continuous(expand = expansion(add = c(0,100000)),
                      labels = scales::number_format(accuracy = 1,
                                                     big.mark = "."))+
   ggplot2::theme_classic()
   
+
+## curva de crimes por tipo_ocorrencia --- TESTE 2
+
+df_temp %>% 
+  filter(tipo_ocorrencia=="furto") %>% 
+  group_by(ano,tipo_ocorrencia) %>%
+  summarise(crimes = sum(crimes,na.rm = T),.groups = "keep") %>%
+  ggplot2::ggplot(aes(x=ano, y=crimes))+
+  ggplot2::geom_line(color="#41B6C4")+
+  theme_classic()
+
+
 
 ## total de crimes por ano e por tipo_ocorrencia
 df_temp %>% 
@@ -168,3 +198,8 @@ df_temp %>%
   ggplot2::scale_x_continuous(n.breaks = 18)+
   ggplot2::theme_classic()
 
+
+
+# Exportar ----------------------------------------------------------------
+
+writexl::write_xlsx(df_temp,"df_temp.xlsx")
